@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 # %% 参数设置
 
-N = 51                        # 网格数 (N x N)
+N = 101                        # 网格数 (N x N)
 h = 1 / (N-1)                 # 网格步长
 nu = 0.001                    # 运动粘度
 dt = 0.001                    # 时间步长
@@ -58,33 +58,17 @@ def advection(u, v, field):
 
 # %% 使用Jacobi迭代求解压力泊松方程
 
-def solve_pressure(u_star, v_star, p):
+def solve_pressure(u_star, v_star):
     p_new = np.zeros_like(p)
-    
-    # 计算内部点的散度
-    div_u = np.zeros_like(u_star)
-    div_u[1:-1, 1:-1] = (
-        (u_star[2:, 1:-1] - u_star[:-2, 1:-1]) / (2*h) +  # ∂u*/∂x
-        (v_star[1:-1, 2:] - v_star[1:-1, :-2]) / (2*h)    # ∂v*/∂y
-    )
-    rhs = div_u / dt  # 右端项 ∇·u^* / Δt
-    
-    # Jacobi迭代
-    for _ in range(1000):
-        p_old = p.copy()
-        p_new[1:-1, 1:-1] = (p_old[2:, 1:-1] + p_old[:-2, 1:-1] + p_old[1:-1, 2:] + p_old[1:-1, :-2] - h**2 * rhs[1:-1, 1:-1]) / 4
-        
-        p_new[:, 0] = p_new[:, 1]     # 下边界
-        p_new[0, :] = p_new[1, :]     # 左边界
-        p_new[-1, :] = p_new[-2, :]   # 右边界
-        p_new[:, -1] = p_new[:, -2]   # 上边界
-        
-        # 检查收敛
-        if np.max(np.abs(p_new - p_old)) < 1e-6:
-            break
-        p = p_new.copy()
-    
+    rhs = (np.roll(u_star, -1, axis=0) - np.roll(u_star, 1, axis=0) + 
+          np.roll(v_star, -1, axis=1) - np.roll(v_star, 1, axis=1)) / (2*h*dt)
+    for _ in range(100):
+        p_new = (np.roll(p, 1, axis=0) + np.roll(p, -1, axis=0) + 
+                np.roll(p, 1, axis=1) + np.roll(p, -1, axis=1) - 
+                h**2 * rhs) / 4
+        p[:, :] = p_new
     return p
+
 # %% 主循环
 
 for step in range(max_steps):
@@ -147,6 +131,7 @@ x = np.linspace(0, 1, N)
 y = np.linspace(0, 1, N)
 X, Y = np.meshgrid(x, y)
 plt.contour(X, Y, psi, levels=30, colors='blue')
+plt.axvline(x = 0.6, color = 'black', linestyle = '--', linewidth = 1)
 plt.title(f"Stream Line Graph (Grid = {N-1} | Central)")
 plt.xlabel("x"); plt.ylabel("y")
 plt.show()
